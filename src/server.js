@@ -10,7 +10,7 @@ const { sendMessage } = require('./digisac');
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(session({ secret: process.env.SESSION_SECRET || 'secret', resave: false, saveUninitialized: false }));
+app.use(session({ secret: process.env.SESSION_SECRET || 'secret', resave: false, saveUninitialized: false, cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 function auth(req, res, next) {
@@ -144,7 +144,7 @@ app.post('/webhook/braip', async (req, res) => {
       const result = await createOrRenewCustomer({ cfg, planMaps, clientName, clientEmail, clientCel, clientDoc, planName });
       username = result.username;
       password = result.password;
-      console.log('[WEBHOOK] Sigma OK — username:', username);
+      console.log('[WEBHOOK] Sigma OK â username:', username);
     } catch (e) {
       errMsg = 'Sigma: ' + e.message;
       console.error('[WEBHOOK] Sigma ERRO:', e.message);
