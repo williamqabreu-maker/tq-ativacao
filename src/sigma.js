@@ -8,16 +8,14 @@ async function getConfig(pool) {
 }
 
 async function getPlanMaps(pool) {
-  const { rows } = await pool.query('SELECT braip_name, sigma_package_id FROM plan_maps');
+  const { rows } = await pool.query('SELECT braip_name, sigma_package_id, skip_sigma, custom_msg FROM plan_maps');
   return rows;
 }
 
 function resolvePackageId(planName, planMaps, defaultId) {
   const upper = (planName || '').toUpperCase();
   for (const map of planMaps) {
-    if (upper.includes(map.braip_name.toUpperCase())) {
-      return map.sigma_package_id;
-    }
+    if (upper.includes(map.braip_name.toUpperCase())) return map.sigma_package_id;
   }
   return defaultId;
 }
@@ -33,51 +31,32 @@ async function createOrRenewCustomer({ cfg, planMaps, clientName, clientEmail, c
 
   const headers = { Authorization: `Bearer ${token}` };
 
-  let clienteExiste = false;
-  let clienteUsername = null;
+  let clienteExiste = false, clienteUsername = null;
   try {
-    const res = await axios.get(`${panelUrl}/webhook/customer`, {
-      headers,
-      params: { note: clientDoc || clientEmail },
-      timeout: 15000
-    });
+    const res = await axios.get(`${panelUrl}/webhook/customer`, { headers, params: { note: clientDoc || clientEmail }, timeout: 15000 });
     const data = res.data?.data || [];
-    if (data.length > 0) {
-      clienteExiste = true;
-      clienteUsername = data[0].username;
-    }
+    if (data.length > 0) { clienteExiste = true; clienteUsername = data[0].username; }
   } catch (e) {
     console.error('Sigma busca cliente erro:', e.response?.data || e.message);
   }
 
   let username, password;
-
   try {
     if (clienteExiste) {
-      const res = await axios.post(`${panelUrl}/webhook/customer/renew`, {
-        userId, username: clienteUsername, packageId
-      }, { headers, timeout: 15000 });
+      const res = await axios.post(`${panelUrl}/webhook/customer/renew`, { userId, username: clienteUsername, packageId }, { headers, timeout: 15000 });
       username = res.data?.username || res.data?.data?.username || clienteUsername;
       password = res.data?.password || res.data?.data?.password || '';
     } else {
-      const res = await axios.post(`${panelUrl}/webhook/customer/create`, {
-        userId, packageId,
-        username: '', password: '',
-        name: clientName, email: clientEmail,
-        whatsapp: clientCel,
-        note: clientDoc || clientEmail
-      }, { headers, timeout: 15000 });
+      const res = await axios.post(`${panelUrl}/webhook/customer/create`, { userId, packageId, username: '', password: '', name: clientName, email: clientEmail, whatsapp: clientCel, note: clientDoc || clientEmail }, { headers, timeout: 15000 });
       username = res.data?.username || res.data?.data?.username || '';
       password = res.data?.password || res.data?.data?.password || '';
     }
   } catch (e) {
     const errDetail = e.response?.data ? JSON.stringify(e.response.data) : e.message;
-    const action = clienteExiste ? 'renovar' : 'criar';
-    throw new Error(`Sigma erro ao ${action} cliente: ${errDetail}`);
+    throw new Error(`Sigma erro ao ${clienteExiste ? 'renovar' : 'criar'} cliente: ${errDetail}`);
   }
 
   if (!username) throw new Error('Sigma retornou username vazio. Verifique token e packageId.');
-
   return { username, password, clienteExiste };
 }
 
