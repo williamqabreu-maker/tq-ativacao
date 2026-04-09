@@ -75,7 +75,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
     <div class="stat"><div class="stat-label">Erros</div><div class="stat-value" id="stat-err" style="color:#e05c00">-</div></div>
   </div>
   <div class="section" style="padding:0;overflow:hidden;">
-    <table><thead><tr><th>Data</th><th>Cliente</th><th>Telefone</th><th>Plano Braip</th><th>Login Sigma</th><th>Status</th><th></th></tr></thead>
+    <table><thead><tr><th>Data</th><th>Cliente</th><th>Telefone</th><th>Plano Braip</th><th>Login Sigma</th><th>Status</th><th>Erro</th><th></th></tr></thead>
     <tbody id="act-body"><tr><td colspan="7" class="empty">Carregando...</td></tr></tbody></table>
   </div>
 </div>
@@ -200,7 +200,7 @@ async function loadAct(){
   document.getElementById('stat-total').textContent=rows.length;
   document.getElementById('stat-ok').textContent=rows.filter(r=>r.status==='success').length;
   document.getElementById('stat-err').textContent=rows.filter(r=>r.status==='error').length;
-  b.innerHTML=rows.map(r=>'<tr><td style="white-space:nowrap;font-size:12px;">'+new Date(r.created_at).toLocaleString('pt-BR')+'</td><td>'+(r.client_name||'-')+'</td><td class="mono">'+(r.client_cel||'-')+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+(r.plan_name||'-')+'</td><td class="mono" style="color:#e05c00;">'+(r.sigma_username||'-')+'</td><td><span class="badge '+(r.status==='success'?'badge-green':'badge-red')+'">'+(r.status==='success'?'OK':'Erro')+'</span></td><td><button class="btn-sm" onclick="resend('+r.id+')">Reenviar</button></td></tr>').join('');
+  b.innerHTML=rows.map(r=>'<tr><td style="white-space:nowrap;font-size:12px;">'+new Date(r.created_at).toLocaleString('pt-BR')+'</td><td>'+(r.client_name||'-')+'</td><td class="mono">'+(r.client_cel||'-')+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+(r.plan_name||'-')+'</td><td class="mono" style="color:#e05c00;">'+(r.sigma_username||'-')+'</td><td><span class="badge '+(r.status==='success'?'badge-green':'badge-red')+'">'+(r.status==='success'?'OK':'Erro')+'</span></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#e05c00;" title="'+(r.error_msg||'')+'">'+(r.error_msg||'')+'</td><td><button class="btn-sm" onclick="resend('+r.id+')">Reenviar</button></td></tr>').join('');
 }
 
 async function resend(id){
