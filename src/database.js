@@ -11,14 +11,14 @@ async function initDB() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
-
     CREATE TABLE IF NOT EXISTS plan_maps (
       id SERIAL PRIMARY KEY,
       braip_name TEXT NOT NULL,
       sigma_package_id TEXT NOT NULL,
+      skip_sigma BOOLEAN DEFAULT FALSE,
+      custom_msg TEXT DEFAULT '',
       created_at TIMESTAMP DEFAULT NOW()
     );
-
     CREATE TABLE IF NOT EXISTS activations (
       id SERIAL PRIMARY KEY,
       trans_key TEXT UNIQUE,
@@ -33,6 +33,9 @@ async function initDB() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  // Migracoes seguras para bancos ja existentes
+  await pool.query(`ALTER TABLE plan_maps ADD COLUMN IF NOT EXISTS skip_sigma BOOLEAN DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE plan_maps ADD COLUMN IF NOT EXISTS custom_msg TEXT DEFAULT ''`);
   console.log('DB inicializado');
 }
 
