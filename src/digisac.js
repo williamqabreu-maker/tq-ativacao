@@ -24,11 +24,12 @@ async function sendMessage({ cfg, phone, vars }) {
     'Content-Type': 'application/json'
   };
 
-  const phoneClean = phone.replace(/\D/g, '');
+  const numberClean = phone.replace(/\D/g, '');
 
+  // Criar/buscar contato — campo correto e "number" (nao "phone")
   const contactPayload = {
-    phone: phoneClean,
-    name: vars.nome || phoneClean,
+    number: numberClean,
+    name: vars.nome || numberClean,
     serviceId,
     ...(deptId ? { departmentId: deptId } : {})
   };
@@ -41,11 +42,12 @@ async function sendMessage({ cfg, phone, vars }) {
     throw new Error(`Digisac contato: ${e.response?.data?.message || e.message}`);
   }
 
+  if (!contactId) throw new Error('Digisac: contactId nao retornado');
+
   if (mediaType !== 'none' && mediaUrl) {
     try {
       await axios.post(`${baseUrl}/api/v1/messages`, {
-        contactId,
-        serviceId,
+        contactId, serviceId,
         type: mediaType,
         url: mediaUrl,
         text: buildMessage(mediaCaption, vars)
@@ -57,8 +59,7 @@ async function sendMessage({ cfg, phone, vars }) {
 
   try {
     await axios.post(`${baseUrl}/api/v1/messages`, {
-      contactId,
-      serviceId,
+      contactId, serviceId,
       type: 'text',
       text: buildMessage(msgTemplate, vars)
     }, { headers });
