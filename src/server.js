@@ -43,7 +43,7 @@ app.post('/api/config', auth, async (req, res) => {
     }
     await pool.query('DELETE FROM plan_maps');
     for (const map of maps) {
-      if (map.braip_name && map.sigma_package_id) {
+      if (map.braip_name && (map.sigma_package_id || map.skip_sigma)) {
         await pool.query(
           'INSERT INTO plan_maps (braip_name, sigma_package_id, skip_sigma, custom_msg) VALUES ($1, $2, $3, $4)',
           [map.braip_name, map.sigma_package_id, map.skip_sigma || false, map.custom_msg || '']
@@ -144,7 +144,7 @@ app.post('/webhook/braip', async (req, res) => {
       const result = await createOrRenewCustomer({ cfg, planMaps, clientName, clientEmail, clientCel, clientDoc, planName });
       username = result.username;
       password = result.password;
-      console.log('[WEBHOOK] Sigma OK â username:', username);
+      console.log('[WEBHOOK] Sigma OK Ã¢ÂÂ username:', username);
     } catch (e) {
       errMsg = 'Sigma: ' + e.message;
       console.error('[WEBHOOK] Sigma ERRO:', e.message);
