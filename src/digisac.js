@@ -14,7 +14,7 @@ async function sendMessage({ cfg, phone, vars }) {
   const token = cfg.digisac_token;
   const serviceId = cfg.digisac_service_id;
   const deptId = cfg.digisac_dept_id;
-  const msgTemplate = cfg.msg_text || 'Parabéns {{nome}}! Login: {{login}} Senha: {{senha}}';
+  const msgTemplate = cfg.msg_text || 'Parabens {{nome}}! Login: {{login}} Senha: {{senha}}';
   const mediaType = cfg.msg_media_type || 'none';
   const mediaUrl = cfg.msg_media_url || '';
   const mediaCaption = cfg.msg_media_caption || '';
@@ -24,8 +24,11 @@ async function sendMessage({ cfg, phone, vars }) {
     'Content-Type': 'application/json'
   };
 
+  const phoneClean = phone.replace(/\D/g, '');
+
   const contactPayload = {
-    phone: phone.replace(/\D/g, ''),
+    phone: phoneClean,
+    name: vars.nome || phoneClean,
     serviceId,
     ...(deptId ? { departmentId: deptId } : {})
   };
@@ -39,20 +42,29 @@ async function sendMessage({ cfg, phone, vars }) {
   }
 
   if (mediaType !== 'none' && mediaUrl) {
-    await axios.post(`${baseUrl}/api/v1/messages`, {
-      contactId, serviceId,
-      type: mediaType === 'video' ? 'video' : 'image',
-      url: mediaUrl,
-      ...(mediaCaption ? { caption: mediaCaption } : {})
-    }, { headers });
+    try {
+      await axios.post(`${baseUrl}/api/v1/messages`, {
+        contactId,
+        serviceId,
+        type: mediaType,
+        url: mediaUrl,
+        text: buildMessage(mediaCaption, vars)
+      }, { headers });
+    } catch (e) {
+      console.error('Digisac midia erro:', e.response?.data || e.message);
+    }
   }
 
-  const text = buildMessage(msgTemplate, vars);
-  await axios.post(`${baseUrl}/api/v1/messages`, {
-    contactId, serviceId, type: 'text', text
-  }, { headers });
-
-  return true;
+  try {
+    await axios.post(`${baseUrl}/api/v1/messages`, {
+      contactId,
+      serviceId,
+      type: 'text',
+      text: buildMessage(msgTemplate, vars)
+    }, { headers });
+  } catch (e) {
+    throw new Error(`Digisac mensagem: ${e.response?.data?.message || e.message}`);
+  }
 }
 
 module.exports = { sendMessage };
