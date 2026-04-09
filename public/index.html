@@ -191,6 +191,7 @@ function showTab(n){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   ['historico','config','mensagem'].forEach((t,i)=>{if(t===n){document.querySelectorAll('.tab')[i].classList.add('active');document.getElementById('tab-'+n).classList.add('active');}});
   if(n==='historico')loadAct();
+  if(n==='config')loadConfig();
 }
 
 async function loadAct(){
