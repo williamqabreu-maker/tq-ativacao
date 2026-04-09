@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
 const path = require('path');
 const axios = require('axios');
 const { pool, initDB } = require('./database');
@@ -36,7 +35,6 @@ app.post('/login', (req, res) => {
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 app.get('/', auth, (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
-// Config
 app.get('/api/config', auth, async (req, res) => {
   try {
     const cfg = await getConfig(pool);
@@ -67,7 +65,6 @@ app.post('/api/config', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Historico
 app.get('/api/activations', auth, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM activations ORDER BY created_at DESC LIMIT 100');
@@ -75,7 +72,6 @@ app.get('/api/activations', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Reenviar
 app.post('/api/activations/:id/resend', auth, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM activations WHERE id = $1', [req.params.id]);
@@ -83,11 +79,11 @@ app.post('/api/activations/:id/resend', auth, async (req, res) => {
     const act = rows[0];
     const cfg = await getConfig(pool);
     await sendMessage({ cfg, phone: act.client_cel, vars: { nome: act.client_name, login: act.sigma_username, senha: act.sigma_password, plano: act.plan_name, email: act.client_email } });
+    await pool.query('UPDATE activations SET status=$1, error_msg=NULL WHERE id=$2', ['success', act.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Planos Sigma
 app.get('/api/sigma-plans', auth, async (req, res) => {
   try {
     const cfg = await getConfig(pool);
@@ -105,7 +101,6 @@ app.get('/api/sigma-plans', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.response?.data?.message || e.message }); }
 });
 
-// Produtos Braip
 app.get('/api/braip-products', auth, async (req, res) => {
   try {
     const cfg = await getConfig(pool);
@@ -127,7 +122,6 @@ app.get('/api/braip-products', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.response?.data?.message || e.message }); }
 });
 
-// Planos Braip do historico
 app.get('/api/braip-plans', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -169,24 +163,44 @@ app.post('/webhook/braip', async (req, res) => {
 
   console.log('[WEBHOOK] Processando:', { clientName, clientEmail, clientCel, planName });
 
+  let username = '', password = '', sigmaOk = false, errMsg = '';
+
+  // ETAPA 1: Sigma — sempre tenta ativar
   try {
     const cfg = await getConfig(pool);
     const planMaps = await getPlanMaps(pool);
-    const { username, password } = await createOrRenewCustomer({ cfg, planMaps, clientName, clientEmail, clientCel, clientDoc, planName });
+    const result = await createOrRenewCustomer({ cfg, planMaps, clientName, clientEmail, clientCel, clientDoc, planName });
+    username = result.username;
+    password = result.password;
+    sigmaOk = true;
     console.log('[WEBHOOK] Sigma OK — username:', username);
-    await sendMessage({ cfg, phone: clientCel, vars: { nome: clientName, login: username, senha: password, plano: planName, email: clientEmail } });
-    console.log('[WEBHOOK] Digisac OK');
-    await pool.query(
-      `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, sigma_username, sigma_password, status) VALUES ($1,$2,$3,$4,$5,$6,$7,'success')`,
-      [transKey, clientName, clientEmail, clientCel, planName, username, password]
-    );
   } catch (e) {
-    console.error('[WEBHOOK] ERRO:', e.message);
+    errMsg = 'Sigma: ' + e.message;
+    console.error('[WEBHOOK] Sigma ERRO:', e.message);
     await pool.query(
       `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, status, error_msg) VALUES ($1,$2,$3,$4,$5,'error',$6)`,
-      [transKey, clientName, clientEmail, clientCel, planName, e.message]
+      [transKey, clientName, clientEmail, clientCel, planName, errMsg]
     );
+    return; // Sigma falhou — para tudo
   }
+
+  // ETAPA 2: Digisac — tenta enviar, mas nao bloqueia a ativacao
+  try {
+    const cfg = await getConfig(pool);
+    await sendMessage({ cfg, phone: clientCel, vars: { nome: clientName, login: username, senha: password, plano: planName, email: clientEmail } });
+    console.log('[WEBHOOK] Digisac OK');
+  } catch (e) {
+    errMsg = 'WhatsApp: ' + e.message;
+    console.warn('[WEBHOOK] Digisac aviso (ativacao salva mesmo assim):', e.message);
+  }
+
+  // ETAPA 3: Salvar — sucesso se Sigma OK, mesmo que Digisac tenha falhado
+  const finalStatus = sigmaOk && !errMsg ? 'success' : (sigmaOk ? 'success_sem_whatsapp' : 'error');
+  await pool.query(
+    `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, sigma_username, sigma_password, status, error_msg) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [transKey, clientName, clientEmail, clientCel, planName, username, password, finalStatus, errMsg || null]
+  );
+  console.log('[WEBHOOK] Salvo com status:', finalStatus);
 });
 
 const PORT = process.env.PORT || 3000;
