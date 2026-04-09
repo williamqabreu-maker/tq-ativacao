@@ -60,7 +60,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
 .map-header{display:grid;grid-template-columns:1fr 40px 1fr 36px;gap:8px;margin-bottom:6px}
 .map-header span{font-size:11px;color:#444;font-weight:600;text-transform:uppercase}
 </style></head><body>
-<div class="topbar"><div class="topbar-title">ð¥ Tela Quente â Ativacao</div><a href="/logout">Sair</a></div>
+<div class="topbar"><div class="topbar-title">Ã°ÂÂÂ¥ Tela Quente Ã¢ÂÂ Ativacao</div><a href="/logout">Sair</a></div>
 <div class="tabs">
   <div class="tab active" onclick="showTab('historico')">Historico</div>
   <div class="tab" onclick="showTab('config')">Configuracoes</div>
@@ -83,12 +83,12 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
 <!-- CONFIGURACOES -->
 <div class="content page" id="tab-config">
   <div class="fluxo-box">
-    â <strong>Fluxo:</strong> Cliente paga na <strong>Braip</strong> â Webhook chega aqui â Sistema cria/renova acesso no <strong>Sigma</strong> â Envia credenciais via <strong>Digisac</strong>
+    Ã¢ÂÂ <strong>Fluxo:</strong> Cliente paga na <strong>Braip</strong> Ã¢ÂÂ Webhook chega aqui Ã¢ÂÂ Sistema cria/renova acesso no <strong>Sigma</strong> Ã¢ÂÂ Envia credenciais via <strong>Digisac</strong>
   </div>
 
   <!-- DIGISAC -->
   <div class="section">
-    <div class="section-header"><span class="section-title">Digisac â envio WhatsApp</span></div>
+    <div class="section-header"><span class="section-title">Digisac Ã¢ÂÂ envio WhatsApp</span></div>
     <div class="grid2">
       <div class="field"><label>URL base</label><input type="text" id="digisac-url" placeholder="https://p2pstream.digisac.io"/></div>
       <div class="field"><label>Token</label><input type="password" id="digisac-token" placeholder="Token..."/></div>
@@ -102,8 +102,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
   <!-- SIGMA -->
   <div class="section">
     <div class="section-header">
-      <span class="section-title">Sigma â painel IPTV</span>
-      <button class="btn-fetch" id="btn-sigma" onclick="buscarSigma()">ð Buscar planos</button>
+      <span class="section-title">Sigma Ã¢ÂÂ painel IPTV</span>
+      <button class="btn-fetch" id="btn-sigma" onclick="buscarSigma()">Ã°ÂÂÂ Buscar planos</button>
     </div>
     <div class="grid2">
       <div class="field"><label>URL base</label><input type="text" id="sigma-url" value="https://telaquente.sigmab.pro/api"/></div>
@@ -115,7 +115,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
     </div>
     <div id="sigma-result" style="display:none;">
       <div class="divider"></div>
-      <div style="font-size:12px;color:#555;margin-bottom:6px;">Planos encontrados â clique para copiar o ID:</div>
+      <div style="font-size:12px;color:#555;margin-bottom:6px;">Planos encontrados Ã¢ÂÂ clique para copiar o ID:</div>
       <div class="planos-tags" id="sigma-tags"></div>
       <div class="status-msg" id="sigma-status"></div>
     </div>
@@ -124,8 +124,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
   <!-- MAPEAMENTO -->
   <div class="section">
     <div class="section-header">
-      <span class="section-title">Mapeamento: Plano Braip â Pacote Sigma</span>
-      <button class="btn-fetch" id="btn-braip" onclick="buscarBraip()">ð Ver planos Braip usados</button>
+      <span class="section-title">Mapeamento: Plano Braip Ã¢ÂÂ Pacote Sigma</span>
+      <button class="btn-fetch" id="btn-braip" onclick="buscarBraip()">Ã°ÂÂÂ Ver planos Braip usados</button>
     </div>
     <p style="font-size:13px;color:#555;margin-bottom:1rem;line-height:1.6;">
       Configure aqui como cada plano da Braip mapeia para um pacote no Sigma.<br>
@@ -136,15 +136,15 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
       <div class="planos-tags" id="braip-tags"></div>
     </div>
     <div class="map-header">
-      <span>ContÃ©m no nome (Braip)</span><span></span><span>Pacote Sigma</span><span></span>
+      <span>ContÃÂ©m no nome (Braip)</span><span></span><span>Pacote Sigma</span><span></span>
     </div>
     <div id="map-list"></div>
     <button class="add-map" onclick="addMap()">+ Adicionar linha</button>
   </div>
 
   <div style="display:flex;gap:12px;align-items:center;">
-    <button class="btn-primary" onclick="saveConfig()">ð¾ Salvar tudo</button>
-    <span class="saved" id="saved-msg">â Salvo com sucesso!</span>
+    <button class="btn-primary" onclick="saveConfig()">Ã°ÂÂÂ¾ Salvar tudo</button>
+    <span class="saved" id="saved-msg">Ã¢ÂÂ Salvo com sucesso!</span>
   </div>
 </div>
 
@@ -177,8 +177,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
     <div class="preview" id="preview"></div>
   </div>
   <div style="display:flex;gap:12px;align-items:center;margin-top:1rem;">
-    <button class="btn-primary" onclick="saveConfig()">ð¾ Salvar mensagem</button>
-    <span class="saved" id="saved-msg2">â Salvo!</span>
+    <button class="btn-primary" onclick="saveConfig()">Ã°ÂÂÂ¾ Salvar mensagem</button>
+    <span class="saved" id="saved-msg2">Ã¢ÂÂ Salvo!</span>
   </div>
 </div>
 
@@ -219,12 +219,12 @@ async function buscarSigma(){
     if(d.error){document.getElementById('sigma-status').textContent='Erro: '+d.error;document.getElementById('sigma-result').style.display='block';return;}
     sigmaPlanos=d.plans||[];
     const tags=document.getElementById('sigma-tags');
-    tags.innerHTML=sigmaPlanos.map(p=>'<span class="ptag" onclick="copiarId(this,\''+p.id+'\',\''+p.name+'\')" title="ID: '+p.id+'">'+p.name+(p.duration?' Â· '+p.duration:'')+'</span>').join('');
+    tags.innerHTML=sigmaPlanos.map(p=>'<span class="ptag" onclick="copiarId(this,\''+p.id+'\',\''+p.name+'\')" title="ID: '+p.id+'">'+p.name+(p.duration?' ÃÂ· '+p.duration:'')+'</span>').join('');
     document.getElementById('sigma-status').textContent=sigmaPlanos.length+' plano(s) encontrado(s). Clique para copiar o ID.';
     document.getElementById('sigma-result').style.display='block';
     renderMaps(); // Re-renderiza com selects
   }catch(e){document.getElementById('sigma-status').textContent='Erro: '+e.message;document.getElementById('sigma-result').style.display='block';}
-  btn.textContent='ð Buscar planos';btn.disabled=false;
+  btn.textContent='Ã°ÂÂÂ Buscar planos';btn.disabled=false;
 }
 
 async function buscarBraip(){
@@ -243,13 +243,13 @@ async function buscarBraip(){
       document.getElementById('braip-historico').style.display='block';
     }
   }catch(e){alert('Erro: '+e.message);}
-  btn.textContent='ð Ver planos Braip usados';btn.disabled=false;
+  btn.textContent='Ã°ÂÂÂ Ver planos Braip usados';btn.disabled=false;
 }
 
 function copiarId(el,id,nome){
   navigator.clipboard.writeText(id);
   const orig=el.textContent;
-  el.textContent='â ID copiado!';el.classList.add('selected');
+  el.textContent='Ã¢ÂÂ ID copiado!';el.classList.add('selected');
   setTimeout(()=>{el.textContent=orig;el.classList.remove('selected');},1500);
 }
 
@@ -268,7 +268,7 @@ function renderMaps(){
     const sigmaSelect=sigmaPlanos.length
       ? '<select oninput="mapRows['+i+'].sigma_package_id=this.value" style="font-size:13px;"><option value="">Selecionar pacote Sigma...</option>'+sigmaPlanos.map(p=>'<option value="'+p.id+'"'+(r.sigma_package_id===p.id?' selected':'')+'>'+p.name+(p.duration?' ('+p.duration+')':'')+'</option>').join('')+'</select>'
       : '<input type="text" value="'+r.sigma_package_id+'" placeholder="ID do pacote Sigma" oninput="mapRows['+i+'].sigma_package_id=this.value" style="font-size:13px;font-family:monospace;"/>';
-    d.innerHTML='<input type="text" value="'+r.braip_name+'" placeholder="ex: MENSAL" oninput="mapRows['+i+'].braip_name=this.value" style="font-size:13px;"/><div class="map-arrow">â</div>'+sigmaSelect+'<label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap;cursor:pointer;"><input type="checkbox" '+(r.skip_sigma?'checked':'')+' onchange="mapRows['+i+'].skip_sigma=this.checked;renderMaps()"/> Sem Sigma</label>'+(r.skip_sigma?'<textarea placeholder="Mensagem fixa (use {{nome}}, {{plano}})..." oninput="mapRows['+i+'].custom_msg=this.value" style="font-size:11px;width:100%;min-height:70px;margin-top:4px;background:#1a1a1a;color:#eee;border:1px solid #444;border-radius:4px;padding:6px;resize:vertical;grid-column:1/-1;">'+( r.custom_msg||'')+'</textarea>':'')+'<button class="map-remove" onclick="removeMap('+i+')" title="Remover">Ã</button>';
+    d.innerHTML='<input type="text" value="'+r.braip_name+'" placeholder="ex: MENSAL" oninput="mapRows['+i+'].braip_name=this.value" style="font-size:13px;"/><div class="map-arrow">Ã¢ÂÂ</div>'+sigmaSelect+'<label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap;cursor:pointer;"><input type="checkbox" '+(r.skip_sigma?'checked':'')+' onchange="mapRows['+i+'].skip_sigma=this.checked;renderMaps()"/> Sem Sigma</label>'+(r.skip_sigma?'<textarea placeholder="Mensagem fixa (use {{nome}}, {{plano}})..." oninput="mapRows['+i+'].custom_msg=this.value" style="font-size:11px;width:100%;min-height:70px;margin-top:4px;background:#1a1a1a;color:#eee;border:1px solid #444;border-radius:4px;padding:6px;resize:vertical;grid-column:1/-1;">'+( r.custom_msg||'')+'</textarea>':'')+'<button class="map-remove" onclick="removeMap('+i+')" title="Remover">ÃÂ</button>';
     l.appendChild(d);
   });
 }
@@ -299,7 +299,7 @@ async function saveConfig(){
 }
 
 async function loadConfig(){
-  const r=await fetch('/api/config');const{cfg,maps}=await r.json();
+  const r=await fetch('/api/config');if(r.redirected||r.url.includes('/login')){location.href='/login';return;}let cfg,maps;try{const d=await r.json();cfg=d.cfg;maps=d.maps;}catch(e){location.href='/login';return;}
   if(cfg.digisac_url)document.getElementById('digisac-url').value=cfg.digisac_url;
   if(cfg.digisac_token)document.getElementById('digisac-token').value=cfg.digisac_token;
   if(cfg.digisac_service_id)document.getElementById('digisac-service').value=cfg.digisac_service_id;
