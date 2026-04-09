@@ -9,15 +9,17 @@ function buildMessage(template, vars) {
     .replace(/{{email}}/g, vars.email || '');
 }
 
-async function sendMessage({ cfg, phone, vars }) {
+async function sendMessage({ cfg, phone, vars, customMsg }) {
   const baseUrl = cfg.digisac_url?.replace(/\/$/, '');
   const token = cfg.digisac_token;
   const serviceId = cfg.digisac_service_id;
   const deptId = cfg.digisac_dept_id;
-  const msgTemplate = cfg.msg_text || 'Parabens {{nome}}! Login: {{login}} Senha: {{senha}}';
   const mediaType = cfg.msg_media_type || 'none';
   const mediaUrl = cfg.msg_media_url || '';
   const mediaCaption = cfg.msg_media_caption || '';
+
+  // customMsg do plano tem prioridade; fallback para msg padrao do painel
+  const msgTemplate = (customMsg && customMsg.trim()) ? customMsg : (cfg.msg_text || 'Parabens {{nome}}! Login: {{login}} Senha: {{senha}}');
 
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -26,7 +28,6 @@ async function sendMessage({ cfg, phone, vars }) {
 
   const numberClean = phone.replace(/\D/g, '');
 
-  // Criar/buscar contato — campo correto e "number" (nao "phone")
   const contactPayload = {
     number: numberClean,
     name: vars.nome || numberClean,
@@ -47,10 +48,7 @@ async function sendMessage({ cfg, phone, vars }) {
   if (mediaType !== 'none' && mediaUrl) {
     try {
       await axios.post(`${baseUrl}/api/v1/messages`, {
-        contactId, serviceId,
-        type: mediaType,
-        url: mediaUrl,
-        text: buildMessage(mediaCaption, vars)
+        contactId, serviceId, type: mediaType, url: mediaUrl, text: buildMessage(mediaCaption, vars)
       }, { headers });
     } catch (e) {
       console.error('Digisac midia erro:', e.response?.data || e.message);
@@ -59,9 +57,7 @@ async function sendMessage({ cfg, phone, vars }) {
 
   try {
     await axios.post(`${baseUrl}/api/v1/messages`, {
-      contactId, serviceId,
-      type: 'text',
-      text: buildMessage(msgTemplate, vars)
+      contactId, serviceId, type: 'text', text: buildMessage(msgTemplate, vars)
     }, { headers });
   } catch (e) {
     throw new Error(`Digisac mensagem: ${e.response?.data?.message || e.message}`);
