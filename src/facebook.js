@@ -12,7 +12,6 @@ function hash(value) {
 
 function normalizePhone(phone) {
   if (!phone) return undefined;
-  // Remove tudo exceto dígitos, garante código do país
   let p = phone.replace(/\D/g, '');
   if (!p.startsWith('55') && p.length <= 11) p = '55' + p;
   return p;
@@ -21,16 +20,12 @@ function normalizePhone(phone) {
 function normalizeName(name) {
   if (!name) return {};
   const parts = name.trim().toLowerCase().split(/\s+/);
-  return {
-    fn: parts[0] || undefined,
-    ln: parts.slice(1).join(' ') || undefined
-  };
+  return { fn: parts[0] || undefined, ln: parts.slice(1).join(' ') || undefined };
 }
 
 async function sendPurchaseEvent({ accessToken, clientName, clientEmail, clientPhone, planName, transKey, value, currency, testEventCode }) {
   const eventTime = Math.floor(Date.now() / 1000);
   const eventId = `braip_${transKey || Date.now()}`;
-
   const { fn, ln } = normalizeName(clientName);
   const phoneNorm = normalizePhone(clientPhone);
 
@@ -41,8 +36,6 @@ async function sendPurchaseEvent({ accessToken, clientName, clientEmail, clientP
     ln: hash(ln),
     country: hash('br'),
   };
-
-  // Remover campos undefined
   Object.keys(userData).forEach(k => userData[k] === undefined && delete userData[k]);
 
   const eventData = {
@@ -59,6 +52,29 @@ async function sendPurchaseEvent({ accessToken, clientName, clientEmail, clientP
     }
   };
 
+  // Payload legível (sem hash) para exibição no painel
+  const readablePayload = {
+    event_name: 'Purchase',
+    event_id: eventId,
+    event_time: new Date(eventTime * 1000).toISOString(),
+    action_source: 'website',
+    user_data: {
+      em: clientEmail || '',
+      ph: phoneNorm || '',
+      fn: fn || '',
+      ln: ln || '',
+      country: 'br',
+      note: 'Enviado com SHA256 para a Meta'
+    },
+    custom_data: {
+      currency: currency || 'BRL',
+      value: parseFloat(value) || 0,
+      content_name: planName || '',
+      content_type: 'product',
+    },
+    ...(testEventCode ? { test_event_code: testEventCode } : {})
+  };
+
   const payload = {
     data: [eventData],
     ...(testEventCode ? { test_event_code: testEventCode } : {})
@@ -70,8 +86,14 @@ async function sendPurchaseEvent({ accessToken, clientName, clientEmail, clientP
       headers: { 'Content-Type': 'application/json' },
       timeout: 10000
     });
-    console.log('[CAPI] Purchase enviado — event_id:', eventId, '| fbc_matched:', res.data?.events_received);
-    return { ok: true, events_received: res.data?.events_received };
+    const eventsReceived = res.data?.events_received || 0;
+    console.log('[CAPI] Purchase enviado — event_id:', eventId, '| events_received:', eventsReceived);
+    return {
+      ok: true,
+      events_received: eventsReceived,
+      event_id: eventId,
+      readable_payload: readablePayload
+    };
   } catch (e) {
     const errMsg = e.response?.data?.error?.message || e.message;
     console.error('[CAPI] Erro:', errMsg);

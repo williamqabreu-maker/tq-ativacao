@@ -36,6 +36,8 @@ async function initDB() {
   // Migracoes seguras para bancos ja existentes
   await pool.query(`ALTER TABLE plan_maps ADD COLUMN IF NOT EXISTS skip_sigma BOOLEAN DEFAULT FALSE`);
   await pool.query(`ALTER TABLE plan_maps ADD COLUMN IF NOT EXISTS custom_msg TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE activations ADD COLUMN IF NOT EXISTS capi_status TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE activations ADD COLUMN IF NOT EXISTS capi_payload TEXT DEFAULT ''`);
   console.log('DB inicializado');
 }
 

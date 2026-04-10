@@ -129,20 +129,31 @@ app.post('/webhook/braip', async (req, res) => {
   const saleValue = body.sale_value || body.total || body.price || 0;
 
   // CAPI Facebook — dispara imediatamente para toda compra aprovada
+  let capiStatus = '', capiPayload = '';
   try {
     const cfg = await getConfig(pool);
     const fbToken = cfg.fb_access_token;
     const fbTestCode = cfg.fb_test_event_code || '';
     if (fbToken) {
-      sendPurchaseEvent({
-        accessToken: fbToken,
-        clientName, clientEmail,
-        clientPhone: clientCel,
-        planName, transKey,
-        value: saleValue,
-        currency: 'BRL',
-        testEventCode: fbTestCode || undefined
-      }).catch(e => console.warn('[CAPI] Erro (nao critico):', e.message));
+      try {
+        const capiResult = await sendPurchaseEvent({
+          accessToken: fbToken,
+          clientName, clientEmail,
+          clientPhone: clientCel,
+          planName, transKey,
+          value: saleValue,
+          currency: 'BRL',
+          testEventCode: fbTestCode || undefined
+        });
+        capiStatus = 'sent';
+        capiPayload = JSON.stringify(capiResult.readable_payload, null, 2);
+        console.log('[CAPI] OK — events_received:', capiResult.events_received);
+      } catch (e) {
+        capiStatus = 'error: ' + e.message;
+        console.warn('[CAPI] Erro:', e.message);
+      }
+    } else {
+      capiStatus = 'token_nao_configurado';
     }
   } catch (e) {
     console.warn('[CAPI] Erro ao buscar config:', e.message);
@@ -190,8 +201,8 @@ app.post('/webhook/braip', async (req, res) => {
 
   const finalStatus = !errMsg ? 'success' : (skipSigma ? 'error' : 'success_sem_whatsapp');
   await pool.query(
-    `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, sigma_username, sigma_password, status, error_msg) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-    [transKey, clientName, clientEmail, clientCel, planName, username || null, password || null, finalStatus, errMsg || null]
+    `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, sigma_username, sigma_password, status, error_msg, capi_status, capi_payload) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+    [transKey, clientName, clientEmail, clientCel, planName, username || null, password || null, finalStatus, errMsg || null, capiStatus, capiPayload]
   );
   console.log('[WEBHOOK] Salvo com status:', finalStatus);
 });

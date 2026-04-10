@@ -75,7 +75,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
     <div class="stat"><div class="stat-label">Erros</div><div class="stat-value" id="stat-err" style="color:#e05c00">-</div></div>
   </div>
   <div class="section" style="padding:0;overflow:hidden;">
-    <table><thead><tr><th>Data</th><th>Cliente</th><th>Telefone</th><th>Plano Braip</th><th>Login Sigma</th><th>Status</th><th>Erro</th><th></th></tr></thead>
+    <table><thead><tr><th>Data</th><th>Cliente</th><th>Telefone</th><th>Plano Braip</th><th>Login Sigma</th><th>Status</th><th>Meta</th><th>Erro</th><th></th></tr></thead>
     <tbody id="act-body"><tr><td colspan="7" class="empty">Carregando...</td></tr></tbody></table>
   </div>
 </div>
@@ -205,12 +205,13 @@ function showTab(n){
 
 async function loadAct(){
   const r=await fetch('/api/activations');const rows=await r.json();
+  rows.forEach(r=>{if(r.capi_payload)_capiData[r.id]=r.capi_payload;});
   const b=document.getElementById('act-body');
   if(!rows.length){b.innerHTML='<tr><td colspan="7" class="empty">Nenhuma ativacao ainda. Aguardando primeiro webhook da Braip.</td></tr>';['stat-total','stat-ok','stat-err'].forEach(id=>document.getElementById(id).textContent='0');return;}
   document.getElementById('stat-total').textContent=rows.length;
   document.getElementById('stat-ok').textContent=rows.filter(r=>r.status==='success').length;
   document.getElementById('stat-err').textContent=rows.filter(r=>r.status==='error').length;
-  b.innerHTML=rows.map(r=>'<tr><td style="white-space:nowrap;font-size:12px;">'+new Date(r.created_at).toLocaleString('pt-BR')+'</td><td>'+(r.client_name||'-')+'</td><td class="mono">'+(r.client_cel||'-')+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+(r.plan_name||'-')+'</td><td class="mono" style="color:#e05c00;">'+(r.sigma_username||'-')+'</td><td><span class="badge '+(r.status==='success'?'badge-green':'badge-red')+'">'+(r.status==='success'?'OK':'Erro')+'</span></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#e05c00;" title="'+(r.error_msg||'')+'">'+(r.error_msg||'')+'</td><td><button class="btn-sm" onclick="resend('+r.id+')">Reenviar</button></td></tr>').join('');
+  b.innerHTML=rows.map(r=>'<tr><td style="white-space:nowrap;font-size:12px;">'+new Date(r.created_at).toLocaleString('pt-BR')+'</td><td>'+(r.client_name||'-')+'</td><td class="mono">'+(r.client_cel||'-')+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+(r.plan_name||'-')+'</td><td class="mono" style="color:#e05c00;">'+(r.sigma_username||'-')+'</td><td><span class="badge '+(r.status==='success'?'badge-green':'badge-red')+'">'+(r.status==='success'?'OK':'Erro')+'</span></td><td style="white-space:nowrap">'+(r.capi_status==='sent'?'<span style="color:#4CAF50;font-size:12px;cursor:pointer" onclick="showCapiPayload('+r.id+')">✅ Enviado</span>':(r.capi_status&&r.capi_status!==''?'<span style="color:#e05c00;font-size:11px">⚠ '+r.capi_status.substring(0,20)+'</span>':'<span style="color:#555;font-size:11px">—</span>'))+"</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#e05c00;" title="'+(r.error_msg||'')+'">'+(r.error_msg||'')+'</td><td><button class="btn-sm" onclick="resend('+r.id+')">Reenviar</button></td></tr>').join('');
 }
 
 async function resend(id){
@@ -331,4 +332,26 @@ async function loadConfig(){
   renderMaps();
 }
 loadConfig();loadAct();
-</script></body></html>
+</script>
+<!-- Modal CAPI -->
+<div id="capi-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:24px;max-width:680px;width:90%;max-height:80vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-weight:600;color:#eee;">📊 Dados enviados para a Meta</span>
+      <button onclick="document.getElementById('capi-modal').style.display='none'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;">×</button>
+    </div>
+    <pre id="capi-payload-content" style="background:#111;padding:16px;border-radius:6px;color:#4CAF50;font-size:12px;white-space:pre-wrap;word-break:break-all;margin:0;"></pre>
+  </div>
+</div>
+
+<script>
+let _capiData = {};
+function showCapiPayload(id) {
+  const payload = _capiData[id];
+  if (!payload) return;
+  document.getElementById('capi-payload-content').textContent = payload;
+  const modal = document.getElementById('capi-modal');
+  modal.style.display = 'flex';
+}
+</script>
+</body></html>
