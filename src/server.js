@@ -6,6 +6,7 @@ const axios = require('axios');
 const { pool, initDB } = require('./database');
 const { createOrRenewCustomer, getConfig, getPlanMaps } = require('./sigma');
 const { sendMessage } = require('./digisac');
+const { sendPurchaseEvent } = require('./facebook');
 
 const app = express();
 app.use(express.json());
@@ -125,6 +126,27 @@ app.post('/webhook/braip', async (req, res) => {
   const clientCel = body.client_cel || '';
   const clientDoc = body.client_document || body.client_doc || '';
   const planName = body.plan_name || '';
+  const saleValue = body.sale_value || body.total || body.price || 0;
+
+  // CAPI Facebook — dispara imediatamente para toda compra aprovada
+  try {
+    const cfg = await getConfig(pool);
+    const fbToken = cfg.fb_access_token;
+    const fbTestCode = cfg.fb_test_event_code || '';
+    if (fbToken) {
+      sendPurchaseEvent({
+        accessToken: fbToken,
+        clientName, clientEmail,
+        clientPhone: clientCel,
+        planName, transKey,
+        value: saleValue,
+        currency: 'BRL',
+        testEventCode: fbTestCode || undefined
+      }).catch(e => console.warn('[CAPI] Erro (nao critico):', e.message));
+    }
+  } catch (e) {
+    console.warn('[CAPI] Erro ao buscar config:', e.message);
+  }
 
   // Verificar se o plano tem skip_sigma
   const planMaps = await getPlanMaps(pool);

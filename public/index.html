@@ -99,6 +99,15 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
     </div>
   </div>
 
+  <!-- FACEBOOK CAPI -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">Facebook — Conversions API</span></div>
+    <div class="grid2">
+      <div class="field"><label>Access Token (CAPI)</label><input type="password" id="fb-access-token" placeholder="EAAMQm..."/></div>
+      <div class="field"><label>Test Event Code (opcional)</label><input type="text" id="fb-test-event-code" placeholder="TEST12345 — remova em produção"/></div>
+    </div>
+  </div>
+
   <!-- SIGMA -->
   <div class="section">
     <div class="section-header">
@@ -290,6 +299,8 @@ async function saveConfig(){
     sigma_token:document.getElementById('sigma-token').value,
     sigma_user_id:document.getElementById('sigma-userid').value,
     sigma_default_package:document.getElementById('sigma-package').value,
+    fb_access_token:document.getElementById('fb-access-token').value,
+    fb_test_event_code:document.getElementById('fb-test-event-code').value,
     msg_text:document.getElementById('msg-text').value,
     msg_media_type:mediaType,
     msg_media_url:document.getElementById('media-url')?.value||'',
@@ -302,6 +313,8 @@ async function saveConfig(){
 async function loadConfig(){
   const r=await fetch('/api/config');if(r.redirected||r.url.includes('/login')){location.href='/login';return;}let cfg,maps;try{const d=await r.json();cfg=d.cfg;maps=d.maps;}catch(e){location.href='/login';return;}
   if(cfg.digisac_url)document.getElementById('digisac-url').value=cfg.digisac_url;
+  if(cfg.fb_access_token)document.getElementById('fb-access-token').value=cfg.fb_access_token;
+  if(cfg.fb_test_event_code)document.getElementById('fb-test-event-code').value=cfg.fb_test_event_code;
   if(cfg.digisac_token)document.getElementById('digisac-token').value=cfg.digisac_token;
   if(cfg.digisac_service_id)document.getElementById('digisac-service').value=cfg.digisac_service_id;
   if(cfg.digisac_dept_id)document.getElementById('digisac-dept').value=cfg.digisac_dept_id;
