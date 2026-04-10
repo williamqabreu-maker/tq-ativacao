@@ -211,7 +211,7 @@ async function loadAct(){
   document.getElementById('stat-total').textContent=rows.length;
   document.getElementById('stat-ok').textContent=rows.filter(r=>r.status==='success').length;
   document.getElementById('stat-err').textContent=rows.filter(r=>r.status==='error').length;
-  b.innerHTML=rows.map(r=>'<tr><td style="white-space:nowrap;font-size:12px;">'+new Date(r.created_at).toLocaleString('pt-BR')+'</td><td>'+(r.client_name||'-')+'</td><td class="mono">'+(r.client_cel||'-')+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+(r.plan_name||'-')+'</td><td class="mono" style="color:#e05c00;">'+(r.sigma_username||'-')+'</td><td><span class="badge '+(r.status==='success'?'badge-green':'badge-red')+'">'+(r.status==='success'?'OK':'Erro')+'</span></td><td style="white-space:nowrap">'+(r.capi_status==='sent'?'<span style="color:#4CAF50;font-size:12px;cursor:pointer" onclick="showCapiPayload('+r.id+')">✅ Enviado</span>':(r.capi_status&&r.capi_status!==''?'<span style="color:#e05c00;font-size:11px">⚠ '+r.capi_status.substring(0,20)+'</span>':'<span style="color:#555;font-size:11px">—</span>'))+"</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#e05c00;" title="'+(r.error_msg||'')+'">'+(r.error_msg||'')+'</td><td><button class="btn-sm" onclick="resend('+r.id+')">Reenviar</button></td></tr>').join('');
+  b.innerHTML=rows.map(r=>'<tr><td style="white-space:nowrap;font-size:12px;">'+new Date(r.created_at).toLocaleString('pt-BR')+'</td><td>'+(r.client_name||'-')+'</td><td class="mono">'+(r.client_cel||'-')+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+(r.plan_name||'-')+'</td><td class="mono" style="color:#e05c00;">'+(r.sigma_username||'-')+'</td><td><span class="badge '+(r.status==='success'?'badge-green':'badge-red')+'">'+(r.status==='success'?'OK':'Erro')+'</span></td><td style="white-space:nowrap">'+(r.capi_status==='sent'?'<span class="capi-btn" data-id="'+r.id+'">&#x2705; Enviado</span>':(r.capi_status?'<span style="color:#e05c00;font-size:11px">'+r.capi_status.substring(0,15)+'</span>':'&#x2014;'))+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#e05c00;" title="'+(r.error_msg||'')+'">'+(r.error_msg||'')+'</td><td><button class="btn-sm" onclick="resend('+r.id+')">Reenviar</button></td></tr>').join('');
 }
 
 async function resend(id){
@@ -348,10 +348,14 @@ loadConfig();loadAct();
 let _capiData = {};
 function showCapiPayload(id) {
   const payload = _capiData[id];
-  if (!payload) return;
+  if (!payload) { alert('Payload nao disponivel. Faça uma nova compra para gerar dados.'); return; }
   document.getElementById('capi-payload-content').textContent = payload;
-  const modal = document.getElementById('capi-modal');
-  modal.style.display = 'flex';
+  document.getElementById('capi-modal').style.display = 'flex';
 }
+// Event delegation para os botoes capi-btn
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.capi-btn');
+  if (btn) showCapiPayload(btn.dataset.id);
+});
 </script>
 </body></html>
