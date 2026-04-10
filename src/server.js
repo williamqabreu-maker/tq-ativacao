@@ -207,5 +207,53 @@ app.post('/webhook/braip', async (req, res) => {
   console.log('[WEBHOOK] Salvo com status:', finalStatus);
 });
 
+// WEBHOOK BRAIP — APENAS CAPI (sem Sigma, sem WhatsApp)
+app.post('/webhook/braip-capi', async (req, res) => {
+  res.json({ status: 'ok' });
+
+  const body = req.body;
+  const transStatus = body.trans_status || '';
+
+  // Aceitar apenas vendas aprovadas
+  if (!transStatus.toLowerCase().includes('aprovado') && transStatus.toLowerCase() !== 'approved') {
+    console.log('[CAPI-ONLY] Ignorado — status:', transStatus);
+    return;
+  }
+
+  const clientName  = body.client_name  || '';
+  const clientEmail = body.client_email || '';
+  const clientCel   = body.client_cel   || '';
+  const planName    = body.plan_name    || '';
+  const transKey    = body.trans_key    || '';
+  const saleValue   = body.sale_value   || body.total || body.price || 0;
+
+  console.log('[CAPI-ONLY] Processando:', { clientName, clientEmail, planName, transKey });
+
+  try {
+    const cfg = await getConfig(pool);
+    const fbToken = cfg.fb_access_token;
+    const fbTestCode = cfg.fb_test_event_code || '';
+
+    if (!fbToken) {
+      console.warn('[CAPI-ONLY] Token nao configurado');
+      return;
+    }
+
+    const result = await sendPurchaseEvent({
+      accessToken: fbToken,
+      clientName, clientEmail,
+      clientPhone: clientCel,
+      planName, transKey,
+      value: saleValue,
+      currency: 'BRL',
+      testEventCode: fbTestCode || undefined
+    });
+
+    console.log('[CAPI-ONLY] Enviado OK — events_received:', result.events_received);
+  } catch (e) {
+    console.error('[CAPI-ONLY] Erro:', e.message);
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 initDB().then(() => { app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`)); });
