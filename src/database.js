@@ -38,6 +38,16 @@ async function initDB() {
   await pool.query(`ALTER TABLE plan_maps ADD COLUMN IF NOT EXISTS custom_msg TEXT DEFAULT ''`);
   await pool.query(`ALTER TABLE activations ADD COLUMN IF NOT EXISTS capi_status TEXT DEFAULT ''`);
   await pool.query(`ALTER TABLE activations ADD COLUMN IF NOT EXISTS capi_payload TEXT DEFAULT ''`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS upload_history (
+    id SERIAL PRIMARY KEY,
+    filename TEXT,
+    total_records INTEGER DEFAULT 0,
+    sent INTEGER DEFAULT 0,
+    errors INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'running',
+    started_at TIMESTAMP DEFAULT NOW(),
+    finished_at TIMESTAMP
+  )`);
   console.log('DB inicializado');
 }
 

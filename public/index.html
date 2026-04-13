@@ -210,6 +210,7 @@ function showTab(n){
   ['historico','config','mensagem','upload'].forEach((t,i)=>{if(t===n){document.querySelectorAll('.tab')[i].classList.add('active');document.getElementById('tab-'+n).classList.add('active');}});
   if(n==='historico')loadAct();
   if(n==='config')loadConfig();
+  if(n==='upload')loadUploadHistory();
 }
 
 async function loadAct(offset){
@@ -389,6 +390,29 @@ loadConfig();loadAct();
       </div>
     </div>
   </div>
+
+  <div class="section" style="margin-top:16px;">
+    <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <span class="section-title">&#x1F4CB; Histórico de uploads</span>
+      <button onclick="loadUploadHistory()" style="background:#222;border:1px solid #333;color:#aaa;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">&#x21BB; Atualizar</button>
+    </div>
+    <div style="overflow-x:auto;margin-top:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="color:#aaa;border-bottom:1px solid #333;text-align:left;">
+          <th style="padding:8px;">Arquivo</th>
+          <th style="padding:8px;text-align:center;">Total</th>
+          <th style="padding:8px;text-align:center;">Enviados</th>
+          <th style="padding:8px;text-align:center;">Erros</th>
+          <th style="padding:8px;text-align:center;">Status</th>
+          <th style="padding:8px;">Início</th>
+          <th style="padding:8px;">Duração</th>
+        </tr></thead>
+        <tbody id="upload-history-body">
+          <tr><td colspan="7" style="padding:16px;text-align:center;color:#555;">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- Modal CAPI -->
@@ -445,10 +469,46 @@ async function startUpload() {
         clearInterval(window._uploadInterval);
         document.getElementById('upload-done-msg').style.display = 'block';
         document.getElementById('upload-title').textContent = 'Concluído!';
+        loadUploadHistory();
       }
     }, 1500);
   } catch(e) {
     alert('Erro ao enviar: ' + e.message);
+  }
+}
+
+async function loadUploadHistory() {
+  const tbody = document.getElementById('upload-history-body');
+  if (!tbody) return;
+  try {
+    const r = await fetch('/api/upload-history', { credentials: 'include' });
+    const rows = await r.json();
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:#555;">Nenhum upload realizado ainda.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(h => {
+      const started = new Date(h.started_at);
+      const finished = h.finished_at ? new Date(h.finished_at) : null;
+      const dur = finished ? Math.round((finished - started) / 1000) + 's' : '—';
+      const pct = h.total_records > 0 ? Math.round(h.sent / h.total_records * 100) : 0;
+      const statusBadge = h.status === 'done'
+        ? '<span style="color:#4CAF50;font-weight:600;">&#x2705; Concluído</span>'
+        : h.status === 'running'
+        ? '<span style="color:#4090ff;font-weight:600;">&#x23F3; Enviando...</span>'
+        : '<span style="color:#e05c00;font-weight:600;">&#x274C; Erro</span>';
+      return '<tr style="border-bottom:1px solid #222;">' +
+        '<td style="padding:8px;color:#eee;">' + (h.filename || '—') + '</td>' +
+        '<td style="padding:8px;text-align:center;color:#aaa;">' + (h.total_records||0).toLocaleString('pt-BR') + '</td>' +
+        '<td style="padding:8px;text-align:center;color:#4CAF50;font-weight:600;">' + (h.sent||0).toLocaleString('pt-BR') + ' <span style="color:#555;font-size:11px;">(' + pct + '%)</span></td>' +
+        '<td style="padding:8px;text-align:center;color:' + (h.errors > 0 ? '#e05c00' : '#555') + ';">' + (h.errors||0) + '</td>' +
+        '<td style="padding:8px;text-align:center;">' + statusBadge + '</td>' +
+        '<td style="padding:8px;color:#aaa;font-size:12px;">' + started.toLocaleString('pt-BR') + '</td>' +
+        '<td style="padding:8px;color:#aaa;font-size:12px;">' + dur + '</td>' +
+        '</tr>';
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:#e05c00;padding:16px;">Erro ao carregar histórico.</td></tr>';
   }
 }
 

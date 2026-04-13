@@ -373,6 +373,6 @@ app.post('/webhook/braip-capi', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 initDB().then(() => {
-  registerUploadRoutes(app, auth, () => getConfig(pool));
+  registerUploadRoutes(app, auth, () => getConfig(pool), pool);
   app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
 });
