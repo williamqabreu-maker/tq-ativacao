@@ -77,6 +77,13 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
   <div class="section" style="padding:0;overflow:hidden;">
     <table><thead><tr><th>Data</th><th>Cliente</th><th>Telefone</th><th>Plano Braip</th><th>Login Sigma</th><th>Status</th><th>Meta</th><th>Erro</th><th></th></tr></thead>
     <tbody id="act-body"><tr><td colspan="7" class="empty">Carregando...</td></tr></tbody></table>
+    <div id="act-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:#aaa;padding:0 4px;">
+      <span id="act-info"></span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="loadAct(Math.max(0,(window._actOffset||0)-100))" style="background:#222;border:1px solid #333;color:#eee;padding:4px 14px;border-radius:4px;cursor:pointer;">&#x2190; Anterior</button>
+        <button onclick="loadAct((window._actOffset||0)+100)" style="background:#222;border:1px solid #333;color:#eee;padding:4px 14px;border-radius:4px;cursor:pointer;">Pr&#xF3;ximo &#x2192;</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -203,14 +210,29 @@ function showTab(n){
   if(n==='config')loadConfig();
 }
 
-async function loadAct(){
-  const r=await fetch('/api/activations');const rows=await r.json();
+async function loadAct(offset){
+  offset=offset||0;
+  const r=await fetch('/api/activations?limit=100&offset='+offset);
+  const data=await r.json();
+  const rows=Array.isArray(data)?data:(data.rows||[]);
+  const meta=data.meta||null;
   rows.forEach(r=>{if(r.capi_payload)_capiData[r.id]=r.capi_payload;});
+  window._actOffset=offset;
+  const total=meta?parseInt(meta.total||0):rows.length;
+  const from=offset+1,to=Math.min(offset+rows.length,total);
+  const infoEl=document.getElementById('act-info');
+  if(infoEl)infoEl.textContent='Exibindo '+from+'-'+to+' de '+total.toLocaleString('pt-BR')+' registros';
   const b=document.getElementById('act-body');
   if(!rows.length){b.innerHTML='<tr><td colspan="7" class="empty">Nenhuma ativacao ainda. Aguardando primeiro webhook da Braip.</td></tr>';['stat-total','stat-ok','stat-err'].forEach(id=>document.getElementById(id).textContent='0');return;}
-  document.getElementById('stat-total').textContent=rows.length;
-  document.getElementById('stat-ok').textContent=rows.filter(r=>r.status==='success').length;
-  document.getElementById('stat-err').textContent=rows.filter(r=>r.status==='error').length;
+  if(meta){
+    document.getElementById('stat-total').textContent=parseInt(meta.total||0).toLocaleString('pt-BR');
+    document.getElementById('stat-ok').textContent=parseInt(meta.ok||0)+parseInt(meta.capi||0);
+    document.getElementById('stat-err').textContent=parseInt(meta.erros||0);
+  } else {
+    document.getElementById('stat-total').textContent=rows.length;
+    document.getElementById('stat-ok').textContent=rows.filter(r=>r.status==='success'||r.status==='capi_only').length;
+    document.getElementById('stat-err').textContent=rows.filter(r=>r.status==='error').length;
+  }
   b.innerHTML=rows.map(r=>'<tr><td style="white-space:nowrap;font-size:12px;">'+new Date(r.created_at).toLocaleString('pt-BR')+'</td><td>'+(r.client_name||'-')+'</td><td class="mono">'+(r.client_cel||'-')+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+(r.plan_name||'-')+'</td><td class="mono" style="color:#e05c00;">'+(r.sigma_username||'-')+'</td><td><span class="badge '+(r.status==='success'||r.status==='capi_only'||r.status==='success_sem_whatsapp'?'badge-green':'badge-red')+'">'+(r.status==='success'?'OK':r.status==='capi_only'?'CAPI':r.status==='success_sem_whatsapp'?'Sem WA':'Erro')+'</span></td><td style="white-space:nowrap">'+(r.capi_status==='sent'?'<span class="capi-btn" data-id="'+r.id+'">&#x2705; Enviado</span>':(r.capi_status?'<span style="color:#e05c00;font-size:11px">'+r.capi_status.substring(0,15)+'</span>':'&#x2014;'))+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#e05c00;" title="'+(r.error_msg||'')+'">'+(r.error_msg||'')+'</td><td><button class="btn-sm" onclick="resend('+r.id+')">Reenviar</button></td></tr>').join('');
 }
 

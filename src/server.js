@@ -57,8 +57,19 @@ app.post('/api/config', auth, async (req, res) => {
 
 app.get('/api/activations', auth, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM activations ORDER BY created_at DESC LIMIT 100');
-    res.json(rows);
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const offset = parseInt(req.query.offset) || 0;
+    const status = req.query.status || '';
+    const whereClause = status ? `WHERE status = $3` : '';
+    const params = status ? [limit, offset, status] : [limit, offset];
+    const { rows } = await pool.query(
+      `SELECT * FROM activations ${whereClause} ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      params
+    );
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='success') as ok, COUNT(*) FILTER (WHERE status='capi_only') as capi, COUNT(*) FILTER (WHERE capi_status='sent') as capi_sent, COUNT(*) FILTER (WHERE status='error') as erros FROM activations`
+    );
+    res.json({ rows, meta: countRows[0] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
