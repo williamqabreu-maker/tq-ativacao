@@ -212,6 +212,15 @@ app.post('/webhook/braip-capi', async (req, res) => {
   res.json({ status: 'ok' });
 
   const body = req.body;
+  console.log('[CAPI-ONLY] Payload recebido:', JSON.stringify({
+    trans_key: body.trans_key,
+    trans_status: body.trans_status,
+    client_name: body.client_name,
+    client_email: body.client_email,
+    client_cel: body.client_cel,
+    plan_name: body.plan_name,
+    sale_value: body.sale_value || body.total || body.price
+  }));
   const transStatus = body.trans_status || '';
 
   // Aceitar apenas vendas aprovadas
