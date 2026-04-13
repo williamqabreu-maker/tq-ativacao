@@ -162,6 +162,14 @@ function registerUploadRoutes(app, auth, getConfig, pool) {
   // Status do job atual
   app.get('/api/upload-status', auth, (req, res) => res.json(uploadJob));
 
+  // Deletar registro do histórico
+  app.delete('/api/upload-history/:id', auth, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM upload_history WHERE id=$1', [req.params.id]);
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Inserção manual no histórico
   app.post('/api/upload-history/manual', auth, async (req, res) => {
     try {
