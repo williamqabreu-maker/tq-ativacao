@@ -126,7 +126,7 @@ app.post('/webhook/braip', async (req, res) => {
   const clientCel = body.client_cel || '';
   const clientDoc = body.client_document || body.client_doc || '';
   const planName = body.plan_name || '';
-  const saleValue = body.sale_value || body.total || body.price || 0;
+  const saleValue = body.trans_value || body.sale_value || body.plan_amount || body.total || body.price || 0;
 
   // CAPI Facebook — dispara imediatamente para toda compra aprovada
   let capiStatus = '', capiPayload = '';
@@ -256,7 +256,7 @@ app.post('/webhook/braip-capi', async (req, res) => {
   const clientCel   = body.client_cel   || '';
   const planName    = body.plan_name    || '';
   const transKey    = body.trans_key    || '';
-  const saleValue   = body.sale_value   || body.total || body.price || 0;
+  const saleValue   = body.trans_value  || body.sale_value || body.plan_amount || body.total || body.price || 0;
 
   console.log('[CAPI-ONLY] Processando:', { clientName, clientEmail, planName, transKey });
 
