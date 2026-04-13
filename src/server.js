@@ -253,8 +253,25 @@ app.post('/webhook/braip-checkout', async (req, res) => {
     });
 
     console.log('[CHECKOUT] InitiateCheckout enviado OK — events_received:', result.events_received);
+    // Salvar no historico
+    try {
+      await pool.query(
+        `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, status, capi_status, capi_payload)
+         VALUES ($1,$2,$3,$4,$5,'checkout',$6,$7)
+         ON CONFLICT (trans_key) DO UPDATE SET capi_status=$6, capi_payload=$7`,
+        [transKey, clientName, clientEmail, clientCel, planName, 'sent', JSON.stringify(result.readable_payload, null, 2)]
+      );
+    } catch (_) {}
   } catch (e) {
     console.error('[CHECKOUT] Erro:', e.message);
+    try {
+      await pool.query(
+        `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, status, capi_status)
+         VALUES ($1,$2,$3,$4,$5,'checkout',$6)
+         ON CONFLICT (trans_key) DO UPDATE SET capi_status=$6`,
+        [transKey, clientName, clientEmail, clientCel, planName, 'error: ' + e.message.substring(0, 100)]
+      );
+    } catch (_) {}
   }
 });
 
