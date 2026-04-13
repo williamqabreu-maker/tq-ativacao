@@ -7,6 +7,7 @@ const { pool, initDB } = require('./database');
 const { createOrRenewCustomer, getConfig, getPlanMaps } = require('./sigma');
 const { sendMessage } = require('./digisac');
 const { sendPurchaseEvent, sendInitiateCheckoutEvent } = require('./facebook');
+const { registerUploadRoutes } = require('./upload');
 
 const app = express();
 app.use(express.json());
@@ -371,4 +372,7 @@ app.post('/webhook/braip-capi', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-initDB().then(() => { app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`)); });
+initDB().then(() => {
+  registerUploadRoutes(app, auth, () => getConfig(pool));
+  app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+});

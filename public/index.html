@@ -66,6 +66,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#1c1c1c}
   <div class="tab active" onclick="showTab('historico')">Historico</div>
   <div class="tab" onclick="showTab('config')">Configuracoes</div>
   <div class="tab" onclick="showTab('mensagem')">Mensagem</div>
+  <div class="tab" onclick="showTab('upload')">&#x1F4E4; Upload CAPI</div>
 </div>
 
 <!-- HISTORICO -->
@@ -206,7 +207,7 @@ const DEF='Parabens {{nome}}!\n\nSua compra foi um sucesso!\n\nSeus dados de ace
 function showTab(n){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  ['historico','config','mensagem'].forEach((t,i)=>{if(t===n){document.querySelectorAll('.tab')[i].classList.add('active');document.getElementById('tab-'+n).classList.add('active');}});
+  ['historico','config','mensagem','upload'].forEach((t,i)=>{if(t===n){document.querySelectorAll('.tab')[i].classList.add('active');document.getElementById('tab-'+n).classList.add('active');}});
   if(n==='historico')loadAct();
   if(n==='config')loadConfig();
 }
@@ -356,6 +357,40 @@ async function loadConfig(){
 }
 loadConfig();loadAct();
 </script>
+<!-- UPLOAD CAPI -->
+<div class="page" id="tab-upload">
+  <div class="section">
+    <div class="section-header"><span class="section-title">&#x1F4E4; Upload em massa para a Meta CAPI</span></div>
+    <p style="color:#aaa;font-size:13px;margin-bottom:16px;">Envie uma planilha XLSX ou CSV com dados de clientes. O servidor processa e envia como eventos <strong>Purchase</strong> para o pixel em lotes de 1.000.</p>
+    <p style="color:#aaa;font-size:12px;margin-bottom:16px;">Colunas suportadas: <code>email</code>, <code>phone</code>, <code>fn</code> (nome completo), <code>zip</code>, <code>ct</code> (cidade), <code>st</code> (estado), <code>value</code></p>
+
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;">
+      <input type="file" id="upload-file" accept=".xlsx,.csv" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px;border-radius:6px;flex:1;"/>
+      <button onclick="startUpload()" style="background:#e05c00;border:none;color:#fff;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;">&#x1F680; Enviar para Meta</button>
+    </div>
+
+    <div id="upload-progress" style="display:none;">
+      <div style="background:#111;border:1px solid #333;border-radius:8px;padding:20px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+          <span style="color:#eee;font-weight:600;" id="upload-title">Processando...</span>
+          <span style="color:#aaa;font-size:13px;" id="upload-pct">0%</span>
+        </div>
+        <div style="background:#222;border-radius:4px;height:8px;margin-bottom:16px;">
+          <div id="upload-bar" style="background:#e05c00;height:8px;border-radius:4px;width:0%;transition:width 0.5s;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;">
+          <div><div style="color:#aaa;font-size:11px;">TOTAL</div><div style="color:#eee;font-size:20px;font-weight:600;" id="up-total">0</div></div>
+          <div><div style="color:#aaa;font-size:11px;">ENVIADOS</div><div style="color:#4CAF50;font-size:20px;font-weight:600;" id="up-sent">0</div></div>
+          <div><div style="color:#aaa;font-size:11px;">ERROS</div><div style="color:#e05c00;font-size:20px;font-weight:600;" id="up-errors">0</div></div>
+          <div><div style="color:#aaa;font-size:11px;">LOTES</div><div style="color:#4090ff;font-size:20px;font-weight:600;" id="up-batches">0</div></div>
+        </div>
+        <div id="upload-error-msg" style="color:#e05c00;font-size:12px;margin-top:12px;display:none;"></div>
+        <div id="upload-done-msg" style="color:#4CAF50;font-size:13px;margin-top:12px;text-align:center;display:none;">&#x2705; Upload concluído!</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal CAPI -->
 <div id="capi-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:999;align-items:center;justify-content:center;">
   <div style="background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:24px;max-width:680px;width:90%;max-height:80vh;overflow-y:auto;">
@@ -376,6 +411,47 @@ function showCapiPayload(id) {
   document.getElementById('capi-modal').style.display = 'flex';
 }
 // Event delegation para os botoes capi-btn
+async function startUpload() {
+  const fileInput = document.getElementById('upload-file');
+  if (!fileInput.files[0]) { alert('Selecione um arquivo primeiro.'); return; }
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  try {
+    const res = await fetch('/api/upload-capi', { method: 'POST', body: formData, credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) { alert('Erro: ' + (data.error || 'desconhecido')); return; }
+
+    document.getElementById('upload-progress').style.display = 'block';
+    document.getElementById('up-total').textContent = data.total.toLocaleString('pt-BR');
+    document.getElementById('upload-title').textContent = 'Enviando ' + data.total.toLocaleString('pt-BR') + ' registros em ' + data.batches + ' lotes...';
+
+    // Polling do progresso
+    window._uploadInterval = setInterval(async () => {
+      const r = await fetch('/api/upload-status', { credentials: 'include' });
+      const s = await r.json();
+      const pct = s.total > 0 ? Math.round((s.sent + s.errors) / s.total * 100) : 0;
+      document.getElementById('upload-bar').style.width = pct + '%';
+      document.getElementById('upload-pct').textContent = pct + '%';
+      document.getElementById('up-sent').textContent = s.sent.toLocaleString('pt-BR');
+      document.getElementById('up-errors').textContent = s.errors.toLocaleString('pt-BR');
+      document.getElementById('up-batches').textContent = s.batches_done + '/' + s.batches_total;
+      if (s.last_error) {
+        document.getElementById('upload-error-msg').style.display = 'block';
+        document.getElementById('upload-error-msg').textContent = 'Último erro: ' + s.last_error;
+      }
+      if (!s.running) {
+        clearInterval(window._uploadInterval);
+        document.getElementById('upload-done-msg').style.display = 'block';
+        document.getElementById('upload-title').textContent = 'Concluído!';
+      }
+    }, 1500);
+  } catch(e) {
+    alert('Erro ao enviar: ' + e.message);
+  }
+}
+
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('.capi-btn');
   if (btn) showCapiPayload(btn.dataset.id);
