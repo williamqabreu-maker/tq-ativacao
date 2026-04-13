@@ -162,6 +162,19 @@ function registerUploadRoutes(app, auth, getConfig, pool) {
   // Status do job atual
   app.get('/api/upload-status', auth, (req, res) => res.json(uploadJob));
 
+  // Inserção manual no histórico
+  app.post('/api/upload-history/manual', auth, async (req, res) => {
+    try {
+      const { filename, total_records, sent, errors, status, started_at, finished_at } = req.body;
+      const { rows } = await pool.query(
+        `INSERT INTO upload_history (filename, total_records, sent, errors, status, started_at, finished_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [filename, total_records||0, sent||0, errors||0, status||'done', started_at||new Date(), finished_at||new Date()]
+      );
+      res.json(rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Histórico de uploads
   app.get('/api/upload-history', auth, async (req, res) => {
     try {
