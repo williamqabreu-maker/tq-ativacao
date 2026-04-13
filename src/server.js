@@ -6,7 +6,7 @@ const axios = require('axios');
 const { pool, initDB } = require('./database');
 const { createOrRenewCustomer, getConfig, getPlanMaps } = require('./sigma');
 const { sendMessage } = require('./digisac');
-const { sendPurchaseEvent } = require('./facebook');
+const { sendPurchaseEvent, sendInitiateCheckoutEvent } = require('./facebook');
 
 const app = express();
 app.use(express.json());
@@ -216,6 +216,46 @@ app.post('/webhook/braip', async (req, res) => {
     [transKey, clientName, clientEmail, clientCel, planName, username || null, password || null, finalStatus, errMsg || null, capiStatus, capiPayload]
   );
   console.log('[WEBHOOK] Salvo com status:', finalStatus);
+});
+
+// WEBHOOK BRAIP — APENAS InitiateCheckout (inicio de checkout)
+app.post('/webhook/braip-checkout', async (req, res) => {
+  res.json({ status: 'ok' });
+
+  const body = req.body;
+  const clientName  = body.client_name  || '';
+  const clientEmail = body.client_email || '';
+  const clientCel   = body.client_cel   || '';
+  const planName    = body.plan_name    || '';
+  const transKey    = body.trans_key    || ('checkout_' + Date.now());
+  const saleValue   = body.trans_value  || body.sale_value || body.plan_amount || body.total || body.price || 0;
+
+  console.log('[CHECKOUT] Recebido:', { clientName, clientEmail, planName, transKey });
+
+  try {
+    const cfg = await getConfig(pool);
+    const fbToken = cfg.fb_access_token;
+    const fbTestCode = cfg.fb_test_event_code || '';
+
+    if (!fbToken) {
+      console.warn('[CHECKOUT] Token nao configurado');
+      return;
+    }
+
+    const result = await sendInitiateCheckoutEvent({
+      accessToken: fbToken,
+      clientName, clientEmail,
+      clientPhone: clientCel,
+      planName, transKey,
+      value: saleValue,
+      currency: 'BRL',
+      testEventCode: fbTestCode || undefined
+    });
+
+    console.log('[CHECKOUT] InitiateCheckout enviado OK — events_received:', result.events_received);
+  } catch (e) {
+    console.error('[CHECKOUT] Erro:', e.message);
+  }
 });
 
 // Buffer de logs CAPI-ONLY em memória
