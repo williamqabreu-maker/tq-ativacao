@@ -207,11 +207,33 @@ app.post('/webhook/braip', async (req, res) => {
   console.log('[WEBHOOK] Salvo com status:', finalStatus);
 });
 
+// Buffer de logs CAPI-ONLY em memória
+const capiLogs = [];
+
+// Rota para ver os últimos logs recebidos no braip-capi
+app.get('/api/capi-logs', auth, (req, res) => {
+  res.json(capiLogs.slice(-20)); // últimos 20
+});
+
 // WEBHOOK BRAIP — APENAS CAPI (sem Sigma, sem WhatsApp)
 app.post('/webhook/braip-capi', async (req, res) => {
   res.json({ status: 'ok' });
 
   const body = req.body;
+  const logEntry = {
+    ts: new Date().toISOString(),
+    trans_key: body.trans_key,
+    trans_status: body.trans_status,
+    client_name: body.client_name,
+    client_email: body.client_email,
+    client_cel: body.client_cel,
+    plan_name: body.plan_name,
+    sale_value: body.sale_value || body.total || body.price,
+    raw_keys: Object.keys(body)
+  };
+  capiLogs.push(logEntry);
+  if (capiLogs.length > 50) capiLogs.shift();
+
   console.log('[CAPI-ONLY] Payload recebido:', JSON.stringify({
     trans_key: body.trans_key,
     trans_status: body.trans_status,
