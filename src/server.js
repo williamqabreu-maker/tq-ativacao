@@ -371,6 +371,14 @@ app.post('/webhook/braip-capi', async (req, res) => {
   }
 });
 
+// Evitar crash do servidor por erros nao tratados
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT]', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED]', reason?.message || reason);
+});
+
 const PORT = process.env.PORT || 3000;
 initDB().then(() => {
   registerUploadRoutes(app, auth, () => getConfig(pool), pool);
