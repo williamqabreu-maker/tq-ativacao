@@ -9,18 +9,13 @@ const PIXEL_ID = '760559930372047';
 const API_VERSION = 'v19.0';
 const CAPI_URL = `https://graph.facebook.com/${API_VERSION}/${PIXEL_ID}/events`;
 
-// Estado global do job em andamento
+const SUPPORTED_EVENTS = ['Purchase', 'Lead', 'CompleteRegistration', 'InitiateCheckout', 'ViewContent'];
+
 let uploadJob = {
-  running: false,
-  total: 0,
-  sent: 0,
-  errors: 0,
-  batches_total: 0,
-  batches_done: 0,
-  started_at: null,
-  finished_at: null,
-  last_error: '',
-  filename: ''
+  running: false, total: 0, sent: 0, errors: 0,
+  batches_total: 0, batches_done: 0,
+  started_at: null, finished_at: null,
+  last_error: '', filename: '', events: []
 };
 
 function hash(value) {
@@ -52,15 +47,13 @@ function splitName(fullName) {
   return { fn: parts[0] || undefined, ln: parts.slice(1).join(' ') || undefined };
 }
 
-function buildEvent(row, index) {
+function buildUserData(row) {
   const { fn, ln } = splitName(row.fn || row.name || row.nome || '');
   const phone = normalizePhone(row.phone || row.telefone || row.celular || '');
   const email = row.email || '';
   const zip = normalizeZip(row.zip || row.cep || '');
   const city = row.ct || row.city || row.cidade || '';
   const state = row.st || row.state || row.estado || '';
-  const value = parseFloat(row.value || row.valor || 0) || 0;
-  const eventTime = Math.floor(Date.now() / 1000);
 
   const userData = {};
   if (hash(email)) userData.em = hash(email);
@@ -71,15 +64,27 @@ function buildEvent(row, index) {
   if (hash(removeAccents(city))) userData.ct = hash(removeAccents(city));
   if (hash(removeAccents(state))) userData.st = hash(removeAccents(state));
   userData.country = 'br';
+  return userData;
+}
 
-  return {
-    event_name: 'Purchase',
+function buildEvents(row, index, eventNames) {
+  const userData = buildUserData(row);
+  const value = parseFloat(row.value || row.valor || 0) || 0;
+  const eventTime = Math.floor(Date.now() / 1000);
+
+  return eventNames.map(eventName => ({
+    event_name: eventName,
     event_time: eventTime,
-    event_id: `upload_${index}_${eventTime}`,
+    event_id: `upload_${eventName}_${index}_${eventTime}`,
     action_source: 'website',
     user_data: userData,
-    custom_data: { currency: 'BRL', value, content_name: 'Comprador', content_type: 'product' }
-  };
+    custom_data: {
+      currency: 'BRL',
+      value: eventName === 'Purchase' ? value : 0,
+      content_name: 'Lista de clientes',
+      content_type: 'product'
+    }
+  }));
 }
 
 async function sendBatch(events, accessToken, testEventCode) {
@@ -92,51 +97,52 @@ async function sendBatch(events, accessToken, testEventCode) {
   return res.data?.events_received || 0;
 }
 
-async function processUpload(rows, accessToken, testEventCode, filename, pool) {
+async function processUpload(rows, accessToken, testEventCode, filename, eventNames, pool) {
   const BATCH_SIZE = 1000;
+
+  // Cada linha gera N eventos (um por tipo selecionado)
+  // Montar lista flat de todos os eventos
+  const allEvents = [];
+  rows.forEach((row, i) => {
+    const evts = buildEvents(row, i, eventNames);
+    evts.forEach(e => allEvents.push(e));
+  });
+
   const batches = [];
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) batches.push(rows.slice(i, i + BATCH_SIZE));
+  for (let i = 0; i < allEvents.length; i += BATCH_SIZE) batches.push(allEvents.slice(i, i + BATCH_SIZE));
 
   // Criar registro no histórico
   let historyId = null;
   try {
     const { rows: hr } = await pool.query(
       `INSERT INTO upload_history (filename, total_records, status) VALUES ($1, $2, 'running') RETURNING id`,
-      [filename, rows.length]
+      [`${filename} [${eventNames.join(', ')}]`, allEvents.length]
     );
     historyId = hr[0].id;
-  } catch(e) { console.error('[UPLOAD] Erro ao criar histórico:', e.message); }
+  } catch(e) { console.error('[UPLOAD] histórico erro:', e.message); }
 
-  uploadJob = { running: true, total: rows.length, sent: 0, errors: 0,
+  uploadJob = {
+    running: true, total: allEvents.length, sent: 0, errors: 0,
     batches_total: batches.length, batches_done: 0,
-    started_at: new Date().toISOString(), finished_at: null, last_error: '', filename };
+    started_at: new Date().toISOString(), finished_at: null,
+    last_error: '', filename, events: eventNames
+  };
 
-  let globalIndex = 0;
   for (let b = 0; b < batches.length; b++) {
-    const batch = batches[b];
-    const events = batch.map((row, i) => buildEvent(row, globalIndex + i));
-    globalIndex += batch.length;
-
     try {
-      await sendBatch(events, accessToken, testEventCode);
-      uploadJob.sent += batch.length;
-      uploadJob.batches_done = b + 1;
-      console.log(`[UPLOAD] Lote ${b+1}/${batches.length} — ${uploadJob.sent}/${uploadJob.total}`);
+      await sendBatch(batches[b], accessToken, testEventCode);
+      uploadJob.sent += batches[b].length;
     } catch (e) {
-      uploadJob.errors += batch.length;
-      uploadJob.batches_done = b + 1;
+      uploadJob.errors += batches[b].length;
       uploadJob.last_error = e.response?.data?.error?.message || e.message;
       console.error(`[UPLOAD] Lote ${b+1} erro:`, uploadJob.last_error);
     }
+    uploadJob.batches_done = b + 1;
+    console.log(`[UPLOAD] Lote ${b+1}/${batches.length} — ${uploadJob.sent}/${uploadJob.total}`);
 
-    // Atualizar histórico a cada lote
     if (historyId) {
-      try {
-        await pool.query(
-          `UPDATE upload_history SET sent=$1, errors=$2 WHERE id=$3`,
-          [uploadJob.sent, uploadJob.errors, historyId]
-        );
-      } catch(e) {}
+      pool.query(`UPDATE upload_history SET sent=$1, errors=$2 WHERE id=$3`,
+        [uploadJob.sent, uploadJob.errors, historyId]).catch(() => {});
     }
 
     if (b < batches.length - 1) await new Promise(r => setTimeout(r, 300));
@@ -145,24 +151,27 @@ async function processUpload(rows, accessToken, testEventCode, filename, pool) {
   uploadJob.running = false;
   uploadJob.finished_at = new Date().toISOString();
 
-  // Finalizar histórico
   if (historyId) {
-    try {
-      await pool.query(
-        `UPDATE upload_history SET sent=$1, errors=$2, status=$3, finished_at=NOW() WHERE id=$4`,
-        [uploadJob.sent, uploadJob.errors, uploadJob.errors === rows.length ? 'error' : 'done', historyId]
-      );
-    } catch(e) {}
+    pool.query(`UPDATE upload_history SET sent=$1, errors=$2, status=$3, finished_at=NOW() WHERE id=$4`,
+      [uploadJob.sent, uploadJob.errors, uploadJob.errors === allEvents.length ? 'error' : 'done', historyId]).catch(() => {});
   }
 
   console.log(`[UPLOAD] Concluído — ${uploadJob.sent} enviados, ${uploadJob.errors} erros`);
 }
 
 function registerUploadRoutes(app, auth, getConfig, pool) {
-  // Status do job atual
+
   app.get('/api/upload-status', auth, (req, res) => res.json(uploadJob));
 
-  // Deletar registro do histórico
+  app.get('/api/upload-events', auth, (req, res) => res.json(SUPPORTED_EVENTS));
+
+  app.get('/api/upload-history', auth, async (req, res) => {
+    try {
+      const { rows } = await pool.query(`SELECT * FROM upload_history ORDER BY started_at DESC LIMIT 20`);
+      res.json(rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+  });
+
   app.delete('/api/upload-history/:id', auth, async (req, res) => {
     try {
       await pool.query('DELETE FROM upload_history WHERE id=$1', [req.params.id]);
@@ -170,7 +179,6 @@ function registerUploadRoutes(app, auth, getConfig, pool) {
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
-  // Inserção manual no histórico
   app.post('/api/upload-history/manual', auth, async (req, res) => {
     try {
       const { filename, total_records, sent, errors, status, started_at, finished_at } = req.body;
@@ -183,17 +191,6 @@ function registerUploadRoutes(app, auth, getConfig, pool) {
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
-  // Histórico de uploads
-  app.get('/api/upload-history', auth, async (req, res) => {
-    try {
-      const { rows } = await pool.query(
-        `SELECT * FROM upload_history ORDER BY started_at DESC LIMIT 20`
-      );
-      res.json(rows);
-    } catch(e) { res.status(500).json({ error: e.message }); }
-  });
-
-  // Upload e disparo
   app.post('/api/upload-capi', auth, upload.single('file'), async (req, res) => {
     if (uploadJob.running) return res.status(400).json({ error: 'Já existe um upload em andamento.' });
     if (!req.file) return res.status(400).json({ error: 'Arquivo não enviado.' });
@@ -204,18 +201,28 @@ function registerUploadRoutes(app, auth, getConfig, pool) {
       const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
       if (!rows.length) return res.status(400).json({ error: 'Planilha vazia.' });
 
+      // Eventos selecionados (vem como JSON string ou array)
+      let selectedEvents = req.body.events;
+      if (typeof selectedEvents === 'string') {
+        try { selectedEvents = JSON.parse(selectedEvents); } catch { selectedEvents = [selectedEvents]; }
+      }
+      if (!selectedEvents || !selectedEvents.length) selectedEvents = ['Purchase'];
+      selectedEvents = selectedEvents.filter(e => SUPPORTED_EVENTS.includes(e));
+
       const cfg = await getConfig();
       const fbToken = cfg.fb_access_token;
       if (!fbToken) return res.status(400).json({ error: 'Token da CAPI não configurado.' });
 
-      const filename = req.file.originalname;
-      res.json({ ok: true, total: rows.length, batches: Math.ceil(rows.length / 1000) });
+      const totalEvents = rows.length * selectedEvents.length;
+      const totalBatches = Math.ceil(totalEvents / 1000);
 
-      processUpload(rows, fbToken, cfg.fb_test_event_code || undefined, filename, pool).catch(console.error);
+      res.json({ ok: true, records: rows.length, events: selectedEvents, total_events: totalEvents, batches: totalBatches });
+
+      processUpload(rows, fbToken, cfg.fb_test_event_code || undefined, req.file.originalname, selectedEvents, pool).catch(console.error);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   });
 }
 
-module.exports = { registerUploadRoutes };
+module.exports = { registerUploadRoutes, SUPPORTED_EVENTS };

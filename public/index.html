@@ -365,8 +365,29 @@ loadConfig();loadAct();
     <p style="color:#aaa;font-size:13px;margin-bottom:16px;">Envie uma planilha XLSX ou CSV com dados de clientes. O servidor processa e envia como eventos <strong>Purchase</strong> para o pixel em lotes de 1.000.</p>
     <p style="color:#aaa;font-size:12px;margin-bottom:16px;">Colunas suportadas: <code>email</code>, <code>phone</code>, <code>fn</code> (nome completo), <code>zip</code>, <code>ct</code> (cidade), <code>st</code> (estado), <code>value</code></p>
 
+    <div style="margin-bottom:16px;">
+      <div style="color:#aaa;font-size:12px;margin-bottom:8px;font-weight:600;">EVENTOS A ENVIAR (cada pessoa receberá um evento por tipo marcado):</div>
+      <div id="event-checkboxes" style="display:flex;flex-wrap:wrap;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" value="Purchase" checked onchange="updateEventCount()"/> &#x1F6D2; Purchase
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" value="Lead" onchange="updateEventCount()"/> &#x1F4CB; Lead
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" value="CompleteRegistration" onchange="updateEventCount()"/> &#x2705; CompleteRegistration
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" value="InitiateCheckout" onchange="updateEventCount()"/> &#x1F4B3; InitiateCheckout
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" value="ViewContent" onchange="updateEventCount()"/> &#x1F441; ViewContent
+        </label>
+      </div>
+      <div style="color:#aaa;font-size:12px;margin-top:8px;" id="event-count-preview">Total de eventos a enviar: calculando...</div>
+    </div>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;">
-      <input type="file" id="upload-file" accept=".xlsx,.csv" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px;border-radius:6px;flex:1;"/>
+      <input type="file" id="upload-file" accept=".xlsx,.csv" onchange="updateEventCount()" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px;border-radius:6px;flex:1;"/>
       <button onclick="startUpload()" style="background:#e05c00;border:none;color:#fff;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;">&#x1F680; Enviar para Meta</button>
     </div>
 
@@ -439,8 +460,13 @@ async function startUpload() {
   const fileInput = document.getElementById('upload-file');
   if (!fileInput.files[0]) { alert('Selecione um arquivo primeiro.'); return; }
 
+  const checkboxes = document.querySelectorAll('#event-checkboxes input:checked');
+  const selectedEvents = Array.from(checkboxes).map(cb => cb.value);
+  if (!selectedEvents.length) { alert('Selecione pelo menos um evento.'); return; }
+
   const formData = new FormData();
   formData.append('file', fileInput.files[0]);
+  formData.append('events', JSON.stringify(selectedEvents));
 
   try {
     const res = await fetch('/api/upload-capi', { method: 'POST', body: formData, credentials: 'include' });
@@ -449,7 +475,8 @@ async function startUpload() {
 
     document.getElementById('upload-progress').style.display = 'block';
     document.getElementById('up-total').textContent = data.total.toLocaleString('pt-BR');
-    document.getElementById('upload-title').textContent = 'Enviando ' + data.total.toLocaleString('pt-BR') + ' registros em ' + data.batches + ' lotes...';
+    document.getElementById('upload-title').textContent = 'Enviando ' + (data.total_events||data.total).toLocaleString('pt-BR') + ' eventos (' + (data.records||data.total).toLocaleString('pt-BR') + ' pessoas × ' + (data.events||[]).length + ' tipos) em ' + data.batches + ' lotes...';
+    document.getElementById('up-total').textContent = (data.total_events||data.total).toLocaleString('pt-BR');
 
     // Polling do progresso
     window._uploadInterval = setInterval(async () => {
@@ -475,6 +502,18 @@ async function startUpload() {
   } catch(e) {
     alert('Erro ao enviar: ' + e.message);
   }
+}
+
+function updateEventCount() {
+  const checkboxes = document.querySelectorAll('#event-checkboxes input:checked');
+  const n = checkboxes.length;
+  const fileInput = document.getElementById('upload-file');
+  const preview = document.getElementById('event-count-preview');
+  if (!preview) return;
+  if (n === 0) { preview.textContent = 'Selecione pelo menos um evento.'; preview.style.color = '#e05c00'; return; }
+  preview.style.color = '#aaa';
+  const evtNames = Array.from(checkboxes).map(cb => cb.value).join(', ');
+  preview.textContent = n + ' evento(s) selecionado(s): ' + evtNames;
 }
 
 async function loadUploadHistory() {
