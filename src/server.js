@@ -129,8 +129,8 @@ app.post('/webhook/braip', async (req, res) => {
   if (!transStatus.toLowerCase().includes('aprovado') && transStatus.toLowerCase() !== 'approved') return;
 
   if (transKey) {
-    const { rows } = await pool.query('SELECT id FROM activations WHERE trans_key = $1', [transKey]);
-    if (rows.length) return;
+    const { rows } = await pool.query('SELECT id, status FROM activations WHERE trans_key = $1', [transKey]);
+    if (rows.length && rows[0].status === 'success') return; // ignorar apenas se ja foi success
   }
 
   const clientName = body.client_name || '';
@@ -213,7 +213,10 @@ app.post('/webhook/braip', async (req, res) => {
 
   const finalStatus = !errMsg ? 'success' : (skipSigma ? 'error' : 'success_sem_whatsapp');
   await pool.query(
-    `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, sigma_username, sigma_password, status, error_msg, capi_status, capi_payload) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+    `INSERT INTO activations (trans_key, client_name, client_email, client_cel, plan_name, sigma_username, sigma_password, status, error_msg, capi_status, capi_payload)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     ON CONFLICT (trans_key) DO UPDATE SET
+       sigma_username=$6, sigma_password=$7, status=$8, error_msg=$9, capi_status=$10, capi_payload=$11`,
     [transKey, clientName, clientEmail, clientCel, planName, username || null, password || null, finalStatus, errMsg || null, capiStatus, capiPayload]
   );
   console.log('[WEBHOOK] Salvo com status:', finalStatus);
